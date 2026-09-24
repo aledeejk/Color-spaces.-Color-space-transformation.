@@ -20,7 +20,8 @@ namespace lab2_project
             solutions = new Dictionary<string, ISolution>
             {
                 { "Задание 1", new Task1Solution() },
-                { "Задание 2", new Task2Solution() }
+                { "Задание 2", new Task2Solution() },
+                { "Задание 3", new Task3Solution() }
             };
 
             // Заполнение ComboBox
@@ -72,6 +73,22 @@ namespace lab2_project
 
             try
             {
+                // Для задания 3 показываем диалог настройки HSV
+                if (currentSolution is Task3Solution task3)
+                {
+                    using var dialog = new HsvAdjustDialog();
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        task3.HueShift = dialog.HueShift;
+                        task3.SaturationShift = dialog.SaturationShift;
+                        task3.ValueShift = dialog.ValueShift;
+                    }
+                    else
+                    {
+                        return; // Пользователь отменил
+                    }
+                }
+
                 // Выполнение текущего решения
                 currentSolution.Execute(originalBitmap);
 

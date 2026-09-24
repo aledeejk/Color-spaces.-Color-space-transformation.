@@ -14,6 +14,9 @@
     <Compile Remove="Task2\**" />
     <EmbeddedResource Remove="Task2\**" />
     <None Remove="Task2\**" />
+    <Compile Remove="task3\**" />
+    <EmbeddedResource Remove="task3\**" />
+    <None Remove="task3\**" />
   </ItemGroup>
 
 </Project>

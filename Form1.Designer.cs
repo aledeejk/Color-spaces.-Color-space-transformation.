@@ -22,6 +22,16 @@ namespace lab2_project
         private System.Windows.Forms.Label labelResult1;
         private System.Windows.Forms.Label labelResult2;
         private System.Windows.Forms.Label labelResult3;
+        private System.Windows.Forms.Panel panelHsvControls;
+        private System.Windows.Forms.TrackBar trackBarHue;
+        private System.Windows.Forms.TrackBar trackBarSaturation;
+        private System.Windows.Forms.TrackBar trackBarValue;
+        private System.Windows.Forms.Label labelHue;
+        private System.Windows.Forms.Label labelSaturation;
+        private System.Windows.Forms.Label labelValueHsv;
+        private System.Windows.Forms.Label labelHueValue;
+        private System.Windows.Forms.Label labelSaturationValue;
+        private System.Windows.Forms.Label labelValueHsvValue;
 
         protected override void Dispose(bool disposing)
         {

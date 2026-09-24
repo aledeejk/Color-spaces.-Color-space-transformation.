@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace lab2_project
@@ -7,211 +9,154 @@ namespace lab2_project
     public partial class Form1 : Form
     {
         private Bitmap originalBitmap;
-        private Bitmap grayBitmap1;
-        private Bitmap grayBitmap2;
-        private Bitmap differenceBitmap;
-        private int[] histogram1 = new int[256];
-        private int[] histogram2 = new int[256];
+        private ISolution currentSolution;
+        private readonly Dictionary<string, ISolution> solutions;
 
         public Form1()
         {
             InitializeComponent();
+
+            // Регистрация всех решений
+            solutions = new Dictionary<string, ISolution>
+            {
+                { "Задание 1", new Task1Solution() },
+                { "Задание 2", new Task2Solution() }
+            };
+
+            // Заполнение ComboBox
+            comboBoxTasks.Items.AddRange(solutions.Keys.ToArray());
+            if (comboBoxTasks.Items.Count > 0)
+            {
+                comboBoxTasks.SelectedIndex = 0;
+            }
+        }
+
+        private void ComboBoxTasks_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (comboBoxTasks.SelectedItem == null)
+                return;
+
+            string selectedTask = comboBoxTasks.SelectedItem.ToString();
+            currentSolution = solutions[selectedTask];
+            labelDescription.Text = currentSolution.Description;
+
+            // Очистка результатов при смене задания
+            ClearResults();
         }
 
         private void BtnOpen_Click(object sender, EventArgs e)
         {
             if (openFileDialog1.ShowDialog() != DialogResult.OK)
-            {
                 return;
-            }
 
-            Bitmap loadedBitmap = new Bitmap(openFileDialog1.FileName);
-
-            if (originalBitmap != null)
-            {
-                originalBitmap.Dispose();
-            }
-
-            if (grayBitmap1 != null)
-            {
-                grayBitmap1.Dispose();
-            }
-
-            if (grayBitmap2 != null)
-            {
-                grayBitmap2.Dispose();
-            }
-
-            if (differenceBitmap != null)
-            {
-                differenceBitmap.Dispose();
-            }
-
-            originalBitmap = loadedBitmap;
+            originalBitmap?.Dispose();
+            originalBitmap = new Bitmap(openFileDialog1.FileName);
             pictureBoxOriginal.Image = originalBitmap;
-            pictureBoxGray1.Image = null;
-            pictureBoxGray2.Image = null;
-            pictureBoxDifference.Image = null;
-            grayBitmap1 = null;
-            grayBitmap2 = null;
-            differenceBitmap = null;
-            histogram1 = new int[256];
-            histogram2 = new int[256];
-            panelHistogram1.Invalidate();
-            panelHistogram2.Invalidate();
+
+            ClearResults();
         }
 
         private void BtnProcess_Click(object sender, EventArgs e)
         {
             if (originalBitmap == null)
             {
+                MessageBox.Show("Сначала загрузите изображение!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            if (grayBitmap1 != null)
+            if (currentSolution == null)
             {
-                grayBitmap1.Dispose();
+                MessageBox.Show("Выберите задание!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
 
-            if (grayBitmap2 != null)
+            try
             {
-                grayBitmap2.Dispose();
-            }
+                // Выполнение текущего решения
+                currentSolution.Execute(originalBitmap);
 
-            if (differenceBitmap != null)
+                // Отображение результатов
+                DisplayResults();
+            }
+            catch (Exception ex)
             {
-                differenceBitmap.Dispose();
+                MessageBox.Show($"Ошибка обработки: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
 
-            grayBitmap1 = ToGray1(originalBitmap);
-            grayBitmap2 = ToGray2(originalBitmap);
-            differenceBitmap = Diff(grayBitmap1, grayBitmap2);
+        private void DisplayResults()
+        {
+            // Получение результирующих изображений
+            var resultImages = currentSolution.GetResultImages();
 
-            histogram1 = new int[256];
-            histogram2 = new int[256];
+            if (resultImages.Length > 0)
+                pictureBoxResult1.Image = resultImages[0].image;
+            if (resultImages.Length > 1)
+                pictureBoxResult2.Image = resultImages[1].image;
+            if (resultImages.Length > 2)
+                pictureBoxResult3.Image = resultImages[2].image;
 
-            for (int y = 0; y < grayBitmap1.Height; y++)
-            {
-                for (int x = 0; x < grayBitmap1.Width; x++)
-                {
-                    histogram1[grayBitmap1.GetPixel(x, y).R]++;
-                    histogram2[grayBitmap2.GetPixel(x, y).R]++;
-                }
-            }
+            // Обновление подписей
+            if (resultImages.Length > 0)
+                labelResult1.Text = resultImages[0].title;
+            if (resultImages.Length > 1)
+                labelResult2.Text = resultImages[1].title;
+            if (resultImages.Length > 2)
+                labelResult3.Text = resultImages[2].title;
 
-            pictureBoxGray1.Image = grayBitmap1;
-            pictureBoxGray2.Image = grayBitmap2;
-            pictureBoxDifference.Image = differenceBitmap;
+            // Перерисовка гистограмм
             panelHistogram1.Invalidate();
             panelHistogram2.Invalidate();
+            panelHistogram3.Invalidate();
+        }
+
+        private void ClearResults()
+        {
+            pictureBoxResult1.Image = null;
+            pictureBoxResult2.Image = null;
+            pictureBoxResult3.Image = null;
+            labelResult1.Text = "";
+            labelResult2.Text = "";
+            labelResult3.Text = "";
+            panelHistogram1.Invalidate();
+            panelHistogram2.Invalidate();
+            panelHistogram3.Invalidate();
         }
 
         private void BtnSave_Click(object sender, EventArgs e)
         {
-            if (differenceBitmap == null)
+            if (pictureBoxResult1.Image == null)
             {
+                MessageBox.Show("Нет результатов для сохранения!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             if (saveFileDialog1.ShowDialog() == DialogResult.OK)
             {
-                differenceBitmap.Save(saveFileDialog1.FileName);
+                pictureBoxResult1.Image.Save(saveFileDialog1.FileName);
+                MessageBox.Show("Изображение сохранено!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
-        private Bitmap ToGray1(Bitmap source)
+        private void DrawHistogram(Panel panel, int[] histogram, Color barColor)
         {
-            Bitmap result = new Bitmap(source.Width, source.Height);
+            if (histogram == null || panel.Width == 0 || panel.Height == 0)
+                return;
 
-            for (int y = 0; y < source.Height; y++)
-            {
-                for (int x = 0; x < source.Width; x++)
-                {
-                    Color color = source.GetPixel(x, y);
-                    int value = (int)(0.299 * color.R + 0.587 * color.G + 0.114 * color.B + 0.5);
-
-                    if (value < 0)
-                    {
-                        value = 0;
-                    }
-
-                    if (value > 255)
-                    {
-                        value = 255;
-                    }
-
-                    result.SetPixel(x, y, Color.FromArgb(value, value, value));
-                }
-            }
-
-            return result;
-        }
-
-        private Bitmap ToGray2(Bitmap source)
-        {
-            Bitmap result = new Bitmap(source.Width, source.Height);
-
-            for (int y = 0; y < source.Height; y++)
-            {
-                for (int x = 0; x < source.Width; x++)
-                {
-                    Color color = source.GetPixel(x, y);
-                    int value = (int)(0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B + 0.5);
-
-                    if (value < 0)
-                    {
-                        value = 0;
-                    }
-
-                    if (value > 255)
-                    {
-                        value = 255;
-                    }
-
-                    result.SetPixel(x, y, Color.FromArgb(value, value, value));
-                }
-            }
-
-            return result;
-        }
-
-        private Bitmap Diff(Bitmap first, Bitmap second)
-        {
-            Bitmap result = new Bitmap(first.Width, first.Height);
-
-            for (int y = 0; y < first.Height; y++)
-            {
-                for (int x = 0; x < first.Width; x++)
-                {
-                    int value = Math.Abs(first.GetPixel(x, y).R - second.GetPixel(x, y).R);
-                    result.SetPixel(x, y, Color.FromArgb(value, value, value));
-                }
-            }
-
-            return result;
-        }
-
-        private void DrawHistogram(Panel panel, int[] histogram)
-        {
             using Graphics graphics = panel.CreateGraphics();
             graphics.Clear(panel.BackColor);
 
             int maximum = 0;
-
             for (int i = 0; i < 256; i++)
             {
                 if (histogram[i] > maximum)
-                {
                     maximum = histogram[i];
-                }
             }
 
-            if (maximum == 0 || panel.Width == 0 || panel.Height == 0)
-            {
+            if (maximum == 0)
                 return;
-            }
 
-            using Pen pen = new Pen(Color.Black);
+            using Pen pen = new Pen(barColor);
 
             for (int i = 0; i < 256; i++)
             {
@@ -220,9 +165,7 @@ namespace lab2_project
                 int height = histogram[i] * panel.Height / maximum;
 
                 if (nextX <= x)
-                {
                     nextX = x + 1;
-                }
 
                 for (int lineX = x; lineX < nextX && lineX < panel.Width; lineX++)
                 {
@@ -231,36 +174,43 @@ namespace lab2_project
             }
         }
 
-        private void Panel1_Paint(object sender, PaintEventArgs e)
+        private void PanelHistogram1_Paint(object sender, PaintEventArgs e)
         {
-            DrawHistogram(panelHistogram1, histogram1);
+            if (currentSolution == null)
+                return;
+
+            var histograms = currentSolution.GetHistograms();
+            if (histograms.Length > 0)
+                DrawHistogram(panelHistogram1, histograms[0].histogram, histograms[0].color);
         }
 
-        private void Panel2_Paint(object sender, PaintEventArgs e)
+        private void PanelHistogram2_Paint(object sender, PaintEventArgs e)
         {
-            DrawHistogram(panelHistogram2, histogram2);
+            if (currentSolution == null)
+                return;
+
+            var histograms = currentSolution.GetHistograms();
+            if (histograms.Length > 1)
+                DrawHistogram(panelHistogram2, histograms[1].histogram, histograms[1].color);
+        }
+
+        private void PanelHistogram3_Paint(object sender, PaintEventArgs e)
+        {
+            if (currentSolution == null)
+                return;
+
+            var histograms = currentSolution.GetHistograms();
+            if (histograms.Length > 2)
+                DrawHistogram(panelHistogram3, histograms[2].histogram, histograms[2].color);
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            if (originalBitmap != null)
-            {
-                originalBitmap.Dispose();
-            }
+            originalBitmap?.Dispose();
 
-            if (grayBitmap1 != null)
+            foreach (var solution in solutions.Values)
             {
-                grayBitmap1.Dispose();
-            }
-
-            if (grayBitmap2 != null)
-            {
-                grayBitmap2.Dispose();
-            }
-
-            if (differenceBitmap != null)
-            {
-                differenceBitmap.Dispose();
+                solution.Cleanup();
             }
 
             base.OnFormClosed(e);
